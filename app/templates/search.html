@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if equipment %}
+<div class="breadcrumb">
+    <a href="/">Equipment</a> → {{ equipment.name }}
+</div>
+{% endif %}
+
+<div class="search-bar">
+    <form method="get" action="/search">
+        <input type="hidden" name="equip" value="{{ equipment.id if equipment else '' }}">
+        <input type="search" name="q" placeholder="Describe the symptom or part..." value="{{ query }}" autofocus>
+        <button type="submit">Search</button>
+    </form>
+</div>
+
+{% if results %}
+<ul class="results-list">
+    {% for r in results %}
+    <li class="result-item">
+        <h3>
+            {% if r.source == 'pmcs' %}
+            <a href="/search?equip={{ equipment.id }}&q=item+{{ r.item_number }}">
+                Item #{{ r.item_number }}: {{ r.item_to_inspect }}
+            </a>
+            <span class="source-tag source-pmcs">PMCS</span>
+            {% else %}
+            <span>{{ r.nomenclature }}</span>
+            <span class="source-tag source-parts">PART</span>
+            {% endif %}
+        </h3>
+        <div class="result-meta">
+            {% if r.interval %}<span>⏱ {{ r.interval }}</span>{% endif %}
+            {% if r.nsn %}<span>📦 NSN: {{ r.nsn }}</span>{% endif %}
+            {% if r.tm_ref %}<span>📄 {{ r.tm_ref }}</span>{% endif %}
+            {% if r.source_tm %}<span>📄 {{ r.source_tm }}{% if r.page_ref %}, {{ r.page_ref }}{% endif %}</span>{% endif %}
+            {% if r.part_number %}<span>🔢 {{ r.part_number }}</span>{% endif %}
+        </div>
+        {% if r.technical_status %}
+        <div class="fault-status">⚠️ {{ r.technical_status }}</div>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% elif query %}
+<div class="empty-state">
+    <p>No results found for "{{ query }}".</p>
+    <p style="font-size: 0.85rem;">Try different words — "won't start" instead of "engine failure", or search by NSN.</p>
+</div>
+{% else %}
+<div class="empty-state">
+    <p>Describe a symptom or part to search.</p>
+    <p style="font-size: 0.85rem;">Examples: "engine smoke", "won't start", "oil leak", "5331-01"</p>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,24 @@
+# Environment
+.env
+*.env
+
+# PDFs (keep them local, not in git)
+TMs/
+data/
+
+# Superpowers
+.superpowers/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output
+out/
+*.crdownload
