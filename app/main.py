@@ -20,11 +20,11 @@ async def home(request: Request):
             equipment = db.list_equipment()
         except Exception:
             pass
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "connected": connected,
-        "equipment": equipment,
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"connected": connected, "equipment": equipment},
+    )
 
 
 @app.get("/search")
@@ -44,13 +44,16 @@ async def search(
                 results = db.search(equip, q.strip())
         except Exception:
             pass
-    return templates.TemplateResponse("search.html", {
-        "request": request,
-        "connected": connected,
-        "equipment": equipment,
-        "query": q,
-        "results": results,
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="search.html",
+        context={
+            "connected": connected,
+            "equipment": equipment,
+            "query": q,
+            "results": results,
+        },
+    )
 
 
 @app.get("/item/{item_id}")
@@ -64,18 +67,20 @@ async def item_detail(request: Request, item_id: str):
         except Exception:
             pass
     if item is None:
-        return templates.TemplateResponse("search.html", {
-            "request": request,
-            "connected": connected,
-            "equipment": None,
-            "query": "",
-            "results": [],
-            "error": "Item not found.",
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="search.html",
+            context={
+                "connected": connected,
+                "equipment": None,
+                "query": "",
+                "results": [],
+                "error": "Item not found.",
+            },
+        )
     equipment = db.get_equipment(item["equipment_id"])
-    return templates.TemplateResponse("item.html", {
-        "request": request,
-        "connected": connected,
-        "equipment": equipment,
-        "item": item,
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="item.html",
+        context={"connected": connected, "equipment": equipment, "item": item},
+    )
