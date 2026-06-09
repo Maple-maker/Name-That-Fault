@@ -75,6 +75,10 @@ def derive_tm_number(pdf_name: str) -> str:
 
 
 def main():
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("Starting ingest...", flush=True)
+
     tms_dir = Path("TMs")
     if not tms_dir.exists():
         print("ERROR: TMs/ directory not found.")
