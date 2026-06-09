@@ -31,7 +31,7 @@
             {% endif %}
         </h3>
         <div class="result-meta">
-            {% if r.interval %}<span>⏱ {{ r.interval }}</span>{% endif %}
+            {% if r.inspection_interval %}<span>⏱ {{ r.inspection_interval }}</span>{% endif %}
             {% if r.nsn %}<span>📦 NSN: {{ r.nsn }}</span>{% endif %}
             {% if r.tm_ref %}<span>📄 {{ r.tm_ref }}</span>{% endif %}
             {% if r.source_tm %}<span>📄 {{ r.source_tm }}{% if r.page_ref %}, {{ r.page_ref }}{% endif %}</span>{% endif %}

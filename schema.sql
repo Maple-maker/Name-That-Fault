@@ -22,7 +22,7 @@ CREATE TABLE pmcs_items (
     id               uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     equipment_id     text NOT NULL REFERENCES equipment(id) ON DELETE CASCADE,
     item_number      text NOT NULL,
-    interval         text,
+    inspection_interval text,
     item_to_inspect  text NOT NULL,
     technical_status text,
     nsn              text,
@@ -32,7 +32,7 @@ CREATE TABLE pmcs_items (
                                coalesce(item_to_inspect, '') || ' ' ||
                                coalesce(technical_status, '') || ' ' ||
                                coalesce(nsn, '') || ' ' ||
-                               coalesce(interval, ''))
+                               coalesce(inspection_interval, ''))
     ) STORED,
     created_at       timestamptz DEFAULT now()
 );
@@ -72,7 +72,7 @@ RETURNS TABLE(
     source          text,
     id              uuid,
     item_number     text,
-    interval        text,
+    inspection_interval text,
     item_to_inspect text,
     technical_status text,
     nsn             text,
@@ -90,7 +90,7 @@ BEGIN
         'pmcs'::text,
         pi.id,
         pi.item_number,
-        pi.interval,
+        pi.inspection_interval,
         pi.item_to_inspect,
         pi.technical_status,
         pi.nsn,
@@ -110,7 +110,7 @@ BEGIN
         'pmcs'::text,
         pi.id,
         pi.item_number,
-        pi.interval,
+        pi.inspection_interval,
         pi.item_to_inspect,
         pi.technical_status,
         pi.nsn,

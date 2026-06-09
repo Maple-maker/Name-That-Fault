@@ -65,7 +65,7 @@ def table_to_rows(table: list[list[str]], table_type: str, equipment_id: str,
             rows.append({
                 "equipment_id": equipment_id,
                 "item_number": cells[0] if len(cells) > 0 else "",
-                "interval": cells[1] if len(cells) > 1 else "",
+                "inspection_interval": cells[1] if len(cells) > 1 else "",
                 "item_to_inspect": cells[2] if len(cells) > 2 else "",
                 "technical_status": cells[3] if len(cells) > 3 else "",
                 "nsn": cells[4] if len(cells) > 4 else "",
