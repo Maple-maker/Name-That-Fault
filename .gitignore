@@ -9,6 +9,9 @@ data/
 # Superpowers
 .superpowers/
 
+# Ingest checkpoint
+ingest_checkpoint.txt
+
 # Python
 __pycache__/
 *.pyc

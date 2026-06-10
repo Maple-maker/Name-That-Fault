@@ -1,18 +1,27 @@
 """Load extracted rows into Supabase."""
 import os
 from dotenv import load_dotenv
-from supabase import create_client
+from supabase import create_client, ClientOptions
 
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 
+_client = None
+
 
 def get_client():
-    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        raise RuntimeError("Set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env")
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    global _client
+    if _client is None:
+        if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+            raise RuntimeError("Set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env")
+        _client = create_client(
+            SUPABASE_URL,
+            SUPABASE_SERVICE_KEY,
+            options=ClientOptions(postgrest_client_timeout=120),
+        )
+    return _client
 
 
 def load_equipment(equipment_rows: list[dict]) -> int:

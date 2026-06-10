@@ -6,10 +6,13 @@ Usage:
 Requires:
     - .env with SUPABASE_URL and SUPABASE_SERVICE_KEY
     - PDFs in TMs/ directory
+
+Safe to re-run — skips already-processed PDFs (tracked in ingest_checkpoint.txt).
 """
 import os
 import re
 import sys
+import traceback
 from pathlib import Path
 
 # Add project root to path
@@ -20,12 +23,8 @@ from ingest.load import load_equipment, load_pmcs_items, load_parts
 
 
 def derive_equipment_id(pdf_name: str) -> str:
-    """Derive a stable equipment ID from the PDF filename.
-
-    Example: 'TM 9-2320-280-10 (HMMWV M1151) 2023.pdf' → 'hmmwv-m1151'
-    """
+    """Derive a stable equipment ID from the PDF filename."""
     name = Path(pdf_name).stem
-    # Try to extract the equipment name from parentheses (handle nested)
     start = None
     depth = 0
     for i, ch in enumerate(name):
@@ -37,18 +36,15 @@ def derive_equipment_id(pdf_name: str) -> str:
             depth -= 1
             if depth == 0 and start is not None:
                 return name[start + 1 : i].lower().replace(" ", "-").replace("/", "-")
-    # Fallback: use the first part of the TM number
     tm_match = re.search(r'TM\s+([\d-]+)', name)
     if tm_match:
         return f"tm-{tm_match.group(1)}"
-    # Last resort: slugify the filename
     return name.lower().replace(" ", "-")[:50]
 
 
 def derive_equipment_name(pdf_name: str) -> str:
     """Derive a human-readable equipment name from the PDF filename."""
     name = Path(pdf_name).stem
-    # Try parenthetical content (handle nested parens)
     start = None
     depth = 0
     for i, ch in enumerate(name):
@@ -60,7 +56,6 @@ def derive_equipment_name(pdf_name: str) -> str:
             depth -= 1
             if depth == 0 and start is not None:
                 return name[start + 1 : i].strip()
-    # Fallback: remove TM prefix and return
     cleaned = re.sub(r'^TM\s+[\d-]+[\s,]*', '', name).strip()
     cleaned = re.sub(r'\s+\d{4}$', '', cleaned).strip()
     return cleaned or name
@@ -74,6 +69,20 @@ def derive_tm_number(pdf_name: str) -> str:
     return pdf_name
 
 
+def load_checkpoint() -> set:
+    """Read set of already-processed PDF names."""
+    path = Path("ingest_checkpoint.txt")
+    if path.exists():
+        return set(path.read_text().strip().splitlines())
+    return set()
+
+
+def save_checkpoint(pdf_name: str):
+    """Append a completed PDF to the checkpoint file."""
+    with open("ingest_checkpoint.txt", "a") as f:
+        f.write(pdf_name + "\n")
+
+
 def main():
     from dotenv import load_dotenv
     load_dotenv()
@@ -84,46 +93,66 @@ def main():
         print("ERROR: TMs/ directory not found.")
         sys.exit(1)
 
+    done = load_checkpoint()
+    if done:
+        print(f"Resuming: {len(done)} PDFs already processed, will skip them.\n")
+
     pdfs = sorted(tms_dir.glob("*.pdf"))
-    print(f"Found {len(pdfs)} PDFs in TMs/\n")
+    remaining = [p for p in pdfs if p.name not in done]
+    print(f"Found {len(pdfs)} PDFs total, {len(remaining)} remaining to process.\n")
 
     total_pmcs = 0
     total_parts = 0
     equipment_seen = set()
+    failed = []
 
-    for pdf_path in pdfs:
+    for idx, pdf_path in enumerate(remaining, 1):
         equip_id = derive_equipment_id(pdf_path.name)
         equip_name = derive_equipment_name(pdf_path.name)
         tm_number = derive_tm_number(pdf_path.name)
 
-        # Load equipment row (deduplicate)
-        if equip_id not in equipment_seen:
-            load_equipment([{
-                "id": equip_id,
-                "name": equip_name,
-                "nomenclature": "",
-                "tm_number": tm_number,
-            }])
-            equipment_seen.add(equip_id)
-            print(f"  + Equipment: {equip_name} ({equip_id})")
+        print(f"[{idx}/{len(remaining)}] {pdf_path.name}", flush=True)
 
-        # Extract
-        result = extract_pdf(pdf_path, equip_id, tm_number)
+        try:
+            # Load equipment row (deduplicate)
+            if equip_id not in equipment_seen:
+                try:
+                    load_equipment([{
+                        "id": equip_id,
+                        "name": equip_name,
+                        "nomenclature": "",
+                        "tm_number": tm_number,
+                    }])
+                    equipment_seen.add(equip_id)
+                    print(f"  + Equipment: {equip_name}", flush=True)
+                except Exception as e:
+                    print(f"  ⚠ Equipment upsert failed: {e}", flush=True)
 
-        # Load
-        if result["pmcs_rows"]:
-            n = load_pmcs_items(result["pmcs_rows"])
-            total_pmcs += n
-            print(f"    → Loaded {n} PMCS rows")
+            # Extract
+            result = extract_pdf(pdf_path, equip_id, tm_number)
 
-        if result["parts_rows"]:
-            n = load_parts(result["parts_rows"])
-            total_parts += n
-            print(f"    → Loaded {n} parts rows")
+            # Load
+            if result["pmcs_rows"]:
+                n = load_pmcs_items(result["pmcs_rows"])
+                total_pmcs += n
+                print(f"  → {n} PMCS rows loaded", flush=True)
 
-        print()
+            if result["parts_rows"]:
+                n = load_parts(result["parts_rows"])
+                total_parts += n
+                print(f"  → {n} parts rows loaded", flush=True)
 
-    print(f"DONE. {len(equipment_seen)} equipment types, {total_pmcs:,} PMCS rows, {total_parts:,} parts rows.")
+            save_checkpoint(pdf_path.name)
+
+        except Exception as e:
+            print(f"  ✗ FAILED: {e}", flush=True)
+            failed.append(pdf_path.name)
+            # Save checkpoint anyway so we don't retry the same broken PDF
+            save_checkpoint(pdf_path.name)
+
+    print(f"\nDONE. {len(equipment_seen)} equipment types, {total_pmcs:,} PMCS rows, {total_parts:,} parts rows.")
+    if failed:
+        print(f"FAILED ({len(failed)}): {', '.join(failed)}")
 
 
 if __name__ == "__main__":
